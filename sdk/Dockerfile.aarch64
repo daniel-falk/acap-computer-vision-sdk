@@ -303,6 +303,8 @@ RUN mkdir -p ${BUILD_ROOT}/python-numpy-deps
 RUN apt-get install --reinstall --download-only -o=dir::cache=${BUILD_ROOT}/python-numpy-deps -y --no-install-recommends \
     libgfortran5
 RUN for f in ${BUILD_ROOT}/python-numpy-deps/archives/*.deb; do dpkg -x $f $TARGET_ROOT; done
+RUN CC="gcc -I$BUILD_ROOT/usr/include -I$BUILD_ROOT/usr/include/$(cat /tmp/python_version) $ARCH_CFLAGS" python3 setup.py bdist_wheel
+
 
 # Build SciPy with OpenBLAS
 FROM build-base-arm AS build-python-scipy
@@ -569,6 +571,7 @@ EOF
 FROM ubuntu:${UBUNTU_VERSION} AS packages
 ARG SDK_ROOT_DIR
 ARG TARGET_ROOT
+ARG BUILD_ROOT
 RUN mkdir -p $SDK_ROOT_DIR
 COPY --from=build-openblas $TARGET_ROOT $SDK_ROOT_DIR/openblas
 COPY --from=build-opencv $TARGET_ROOT $SDK_ROOT_DIR/opencv
@@ -578,6 +581,8 @@ COPY --from=build-python-pytesseract $TARGET_ROOT $SDK_ROOT_DIR/python-pytessera
 COPY --from=build-python-tfserving $TARGET_ROOT $SDK_ROOT_DIR/python-tfserving
 COPY --from=build-python-scipy $TARGET_ROOT $SDK_ROOT_DIR/python-scipy
 COPY --from=build-tesseract $TARGET_ROOT $SDK_ROOT_DIR/tesseract
+
+COPY --from=build-python-numpy $BUILD_ROOT/numpy/dist/ $SDK_ROOT_DIR/wheels/
 
 # Get OpenCL-related libs from the Native SDK
 FROM build-base AS build-opencl-devel
